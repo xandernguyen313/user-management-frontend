@@ -4,13 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { UserService } from '../services/user.service';
 import { User } from '../models/user.model';
-import { PageResponse } from '../models/page-response.model';
 
 @Component({
-    selector: 'app-user-list',
-    standalone: true,
-    imports: [CommonModule, FormsModule],
-    template: `
+  selector: 'app-user-list',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
     <div class="container">
       <h2>User Management</h2>
       
@@ -95,65 +94,10 @@ import { PageResponse } from '../models/page-response.model';
             </tr>
           </tbody>
         </table>
-
-        <!-- Pagination Controls -->
-        <div class="pagination" *ngIf="totalPages > 0">
-          <div class="pagination-info">
-            Showing {{ users.length }} of {{ totalElements }} users 
-            (Page {{ currentPage + 1 }} of {{ totalPages }})
-          </div>
-          
-          <div class="pagination-controls">
-            <button 
-              class="page-btn" 
-              (click)="goToPage(0)" 
-              [disabled]="isFirst"
-              title="First Page"
-            >
-              &laquo;
-            </button>
-
-            <button 
-              class="page-btn" 
-              (click)="goToPage(currentPage - 1)" 
-              [disabled]="isFirst"
-              title="Previous Page"
-            >
-              &lsaquo;
-            </button>
-
-            <button 
-              *ngFor="let page of getPageNumbers()" 
-              class="page-btn" 
-              [class.active]="page === currentPage"
-              (click)="goToPage(page)"
-            >
-              {{ page + 1 }}
-            </button>
-
-            <button 
-              class="page-btn" 
-              (click)="goToPage(currentPage + 1)" 
-              [disabled]="isLast"
-              title="Next Page"
-            >
-              &rsaquo;
-            </button>
-
-            <button 
-              class="page-btn" 
-              (click)="goToPage(totalPages - 1)" 
-              [disabled]="isLast"
-              title="Last Page"
-            >
-              &raquo;
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   `,
-    styles: [`
+  styles: [`
     .container {
       max-width: 900px;
       margin: 0 auto;
@@ -288,149 +232,64 @@ import { PageResponse } from '../models/page-response.model';
     .view-btn:hover {
       background-color: #0b7dda;
     }
-
-    /* Pagination Styles */
-    .pagination {
-      margin-top: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 15px;
-    }
-
-    .pagination-info {
-      color: #666;
-      font-size: 14px;
-    }
-
-    .pagination-controls {
-      display: flex;
-      gap: 5px;
-      align-items: center;
-    }
-
-    .page-btn {
-      min-width: 36px;
-      height: 36px;
-      padding: 5px 10px;
-      margin: 0;
-      background-color: #f0f0f0;
-      color: #333;
-      border: 1px solid #ddd;
-      font-size: 14px;
-    }
-
-    .page-btn:hover:not(:disabled) {
-      background-color: #2196F3;
-      color: white;
-      border-color: #2196F3;
-    }
-
-    .page-btn.active {
-      background-color: #2196F3;
-      color: white;
-      border-color: #2196F3;
-    }
-
-    .page-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      background-color: #f0f0f0;
-    }
   `]
 })
 export class UserListComponent implements OnInit {
-    users: User[] = [];
-    newUser = {
-        name: '',
-        email: '',
-        password: ''
-    };
-    isLoading = false;
-    errorMessage = '';
-    successMessage = '';
+  users: User[] = [];
+  newUser = {
+    name: '',
+    email: '',
+    password: ''
+  };
+  isLoading = false;
+  errorMessage = '';
+  successMessage = '';
 
-    // Pagination properties
-    currentPage = 0;
-    pageSize = 3;
-    totalElements = 0;
-    totalPages = 0;
-    isFirst = true;
-    isLast = false;
+  constructor(
+    private userService: UserService,
+    private router: Router
+  ) {}
 
-    constructor(
-        private userService: UserService,
-        private router: Router
-    ) {}
+  ngOnInit(): void {
+    this.loadUsers();
+  }
 
-    ngOnInit(): void {
+  loadUsers(): void {
+    this.isLoading = true;
+    this.userService.getUsers().subscribe({
+      next: (data) => {
+        this.users = data;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading users:', error);
+        this.errorMessage = 'Failed to load users. Make sure Spring Boot backend is running.';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  addUser(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    this.userService.addUser(this.newUser).subscribe({
+      next: (user) => {
+        this.successMessage = 'User added successfully!';
+        this.newUser = { name: '', email: '', password: '' };
         this.loadUsers();
-    }
+        setTimeout(() => this.successMessage = '', 3000);
+      },
+      error: (error) => {
+        console.error('Error adding user:', error);
+        this.errorMessage = error.error?.message || 'Failed to add user';
+        this.isLoading = false;
+      }
+    });
+  }
 
-    loadUsers(): void {
-        this.isLoading = true;
-        this.userService.getUsers(this.currentPage, this.pageSize).subscribe({
-            next: (response: PageResponse<User>) => {
-                this.users = response.content;
-                this.currentPage = response.number;
-                this.pageSize = response.size;
-                this.totalElements = response.totalElements;
-                this.totalPages = response.totalPages;
-                this.isFirst = response.first;
-                this.isLast = response.last;
-                this.isLoading = false;
-            },
-            error: (error) => {
-                console.error('Error loading users:', error);
-                this.errorMessage = 'Failed to load users. Make sure Spring Boot backend is running.';
-                this.isLoading = false;
-            }
-        });
-    }
-
-    // Pagination method
-    goToPage(page: number): void {
-        if (page >= 0 && page < this.totalPages) {
-            this.currentPage = page;
-            this.loadUsers();
-        }
-    }
-
-    // Generate page numbers for display
-    getPageNumbers(): number[] {
-        const pages: number[] = [];
-        const startPage = Math.max(0, this.currentPage - 2);
-        const endPage = Math.min(this.totalPages - 1, this.currentPage + 2);
-
-        for (let i = startPage; i <= endPage; i++) {
-            pages.push(i);
-        }
-        return pages;
-    }
-
-    addUser(): void {
-        this.isLoading = true;
-        this.errorMessage = '';
-        this.successMessage = '';
-
-        this.userService.addUser(this.newUser).subscribe({
-            next: (user) => {
-                this.successMessage = 'User added successfully!';
-                this.newUser = { name: '', email: '', password: '' };
-                // Go to first page to see the new user (if sorted by id desc) or reload current
-                this.currentPage = 0;
-                this.loadUsers();
-                setTimeout(() => this.successMessage = '', 3000);
-            },
-            error: (error) => {
-                console.error('Error adding user:', error);
-                this.errorMessage = error.error?.message || 'Failed to add user';
-                this.isLoading = false;
-            }
-        });
-    }
-
-    viewUser(id: number): void {
-        this.router.navigate(['/user', id]);
-    }
+  viewUser(id: number): void {
+    this.router.navigate(['/user', id]);
+  }
 }
